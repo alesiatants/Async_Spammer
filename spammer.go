@@ -27,20 +27,25 @@ func workerPipeline(wg *sync.WaitGroup, jobFunc cmd, in, out chan interface{}) {
 func SelectUsers(in, out chan interface{}) {
 	// 	in - string
 	// 	out - User
-	seen := make(map[uint64]struct{})
-	var wg sync.WaitGroup
-	for email := range in {
-		wg.Add(1)
-		go func(email string) {
-			defer wg.Done()
-			user := GetUser(email)
-			if _, ok := seen[user.ID]; !ok {
-				seen[user.ID] = struct{}{}
-				out <- user
-			}
-		}(email.(string))
-	}
-	wg.Wait()
+	 seen := make(map[uint64]struct{})
+	 var mu sync.Mutex 
+	 var wg sync.WaitGroup
+	 
+	 for email := range in {
+			 wg.Add(1)
+			 go func(email string) {
+					 defer wg.Done()
+					 user := GetUser(email)
+					 
+					 mu.Lock() // Захватываем мьютекс перед доступом к seen
+					 if _, ok := seen[user.ID]; !ok {
+							 seen[user.ID] = struct{}{}
+							 out <- user
+					 }
+					 mu.Unlock() // и освобождаем мьютекс
+			 }(email.(string))
+	 }
+	 wg.Wait()
 
 }
 
